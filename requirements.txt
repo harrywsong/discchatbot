@@ -1,0 +1,29 @@
+# Discord
+discord.py>=2.4.0
+
+# LLM providers
+google-genai>=1.0.0
+groq>=0.11.0
+
+# Database
+aiosqlite>=0.20.0
+
+# Config
+python-dotenv>=1.0.0
+pydantic-settings>=2.0.0
+
+# HTTP client
+aiohttp>=3.9.0
+
+# Web search
+duckduckgo-search>=6.0.0
+tavily-python>=0.3.0
+
+# File processing
+pypdf>=4.0.0
+python-docx>=1.1.0
+chardet>=5.0.0
+python-magic>=0.4.27
+
+# Audio transcription (via Groq Whisper)
+# Already included via groq package
