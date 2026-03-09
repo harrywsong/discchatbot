@@ -162,6 +162,4 @@ class FilesCog(commands.Cog):
 
 
 async def setup(bot: "DiscordBot") -> None:
-    cog = FilesCog(bot)
-    await bot.add_cog(cog)
-    bot.tree.add_command(cog.files_group)
+    await bot.add_cog(FilesCog(bot))

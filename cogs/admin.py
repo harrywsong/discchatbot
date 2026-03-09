@@ -133,6 +133,4 @@ class AdminCog(commands.Cog):
 
 
 async def setup(bot: "DiscordBot") -> None:
-    cog = AdminCog(bot)
-    await bot.add_cog(cog)
-    bot.tree.add_command(cog.settings_group)
+    await bot.add_cog(AdminCog(bot))

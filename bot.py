@@ -70,6 +70,13 @@ class DiscordBot(commands.Bot):
             )
         )
 
+    async def on_command_error(self, ctx: commands.Context, error: Exception) -> None:
+        # Suppress CommandNotFound — the prefix handler fires on every @mention
+        # but we handle all logic in on_message/slash commands instead.
+        if isinstance(error, commands.CommandNotFound):
+            return
+        logger.error("Prefix command error: %s", error)
+
     async def on_app_command_error(
         self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError
     ) -> None:
