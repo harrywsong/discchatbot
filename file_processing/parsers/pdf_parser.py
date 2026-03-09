@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 # If a PDF averages fewer than this many chars per page, treat it as scanned
 MIN_CHARS_PER_PAGE = 50
 
+# Send pages in batches to stay within Gemini's image-per-request limit
+# and keep token usage reasonable. 5 pages per call is a good balance.
+PAGES_PER_BATCH = 5
+
 
 async def parse(
     path: Path,
@@ -29,11 +33,9 @@ async def parse(
     avg_chars_per_page = total_chars / max(len(pages), 1)
 
     if avg_chars_per_page >= MIN_CHARS_PER_PAGE:
-        # Normal text-based PDF
         result = [f"[Page {i}]\n{text}" for i, text in pages if text]
         return "\n\n---PAGE BREAK---\n\n".join(result)
 
-    # Scanned PDF — no usable embedded text
     logger.info(
         "%s looks scanned (%.1f chars/page avg), attempting vision OCR",
         path.name, avg_chars_per_page,
@@ -62,29 +64,41 @@ async def _ocr_with_gemini(
     images = await asyncio.to_thread(_render_pages)
 
     client = genai.Client(api_key=api_key)
-    page_texts = []
+    all_page_texts = []
 
-    for i, img in enumerate(images, 1):
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        image_bytes = buf.getvalue()
-        logger.info("OCR page %d/%d of %s", i, len(images), path.name)
+    # Process in batches — each batch = 1 API call
+    for batch_start in range(0, len(images), PAGES_PER_BATCH):
+        batch = images[batch_start: batch_start + PAGES_PER_BATCH]
+        batch_num = batch_start // PAGES_PER_BATCH + 1
+        total_batches = (len(images) + PAGES_PER_BATCH - 1) // PAGES_PER_BATCH
+        logger.info(
+            "OCR batch %d/%d (%d pages) of %s",
+            batch_num, total_batches, len(batch), path.name,
+        )
+
+        parts = []
+        for local_i, img in enumerate(batch):
+            page_num = batch_start + local_i + 1
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            parts.append(gtypes.Part.from_bytes(data=buf.getvalue(), mime_type="image/png"))
+            parts.append(gtypes.Part.from_text(text=f"[Page {page_num}]"))
+
+        parts.append(gtypes.Part.from_text(
+            text=(
+                "Extract all text from each of these document pages exactly as it appears. "
+                "For each page, start with a header like [Page N] then the extracted text. "
+                "Preserve structure, headings, tables, and lists. "
+                "Output only the extracted text, nothing else."
+            )
+        ))
 
         response = await asyncio.to_thread(
             client.models.generate_content,
             model=model,
-            contents=[
-                gtypes.Content(role="user", parts=[
-                    gtypes.Part.from_bytes(data=image_bytes, mime_type="image/png"),
-                    gtypes.Part.from_text(
-                        text="Extract all text from this document page exactly as it appears. "
-                             "Preserve structure, headings, tables, and lists. "
-                             "Output only the extracted text, nothing else."
-                    ),
-                ])
-            ],
+            contents=[gtypes.Content(role="user", parts=parts)],
         )
-        page_texts.append(f"[Page {i} — OCR]\n{response.text or ''}")
+        all_page_texts.append(response.text or "")
 
-    logger.info("OCR complete for %s (%d pages)", path.name, len(images))
-    return "\n\n---PAGE BREAK---\n\n".join(page_texts)
+    logger.info("OCR complete for %s (%d pages, %d API call(s))", path.name, len(images), total_batches)
+    return "\n\n---PAGE BREAK---\n\n".join(all_page_texts)
