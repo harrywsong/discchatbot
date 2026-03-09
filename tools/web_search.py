@@ -42,7 +42,7 @@ async def search(query: str, num_results: int = 5) -> list[SearchResult]:
 
 async def _ddg_search(query: str, num_results: int) -> list[SearchResult]:
     def _sync_search():
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
         results = []
         with DDGS() as ddgs:
             for r in ddgs.text(query, max_results=num_results):
