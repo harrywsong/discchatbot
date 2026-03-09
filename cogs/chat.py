@@ -50,12 +50,13 @@ def _build_system_prompt(
         f"You are a helpful AI assistant in a Discord server. "
         f"Current date/time: {now}. Channel: #{channel_name}.",
         "",
-        "You have access to two tools:",
-        "- `web_search`: search the web for current information",
-        "- `read_file`: read files that have been uploaded to this channel",
-        "",
         "Be concise and conversational. Use markdown formatting when helpful.",
-        "When you use web search, cite your sources.",
+        "",
+        "You have tools available, but only use them when genuinely needed:",
+        "- `web_search`: ONLY for current/live info (weather, news, prices, recent events). "
+        "Do NOT use for general knowledge, explanations, or anything in your training data.",
+        "- `read_file`: ONLY when the user asks about a specific uploaded file.",
+        "When you use web_search, cite your sources.",
     ]
     if files_summary and files_summary != "No files indexed in this channel.":
         parts += ["", "Files available in this channel:", files_summary]
