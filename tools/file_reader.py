@@ -8,17 +8,41 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# How many chunks to return when querying a file
-MAX_CHUNKS_PER_QUERY = 3
+MAX_CHUNKS_PER_QUERY = 5
 
 
-def _simple_relevance_score(chunk_text: str, query: str) -> int:
-    """Very basic keyword relevance scoring."""
-    if not query:
-        return 0
+def _keyword_score(chunk_text: str, query: str) -> int:
     query_words = query.lower().split()
     text_lower = chunk_text.lower()
     return sum(1 for word in query_words if word in text_lower)
+
+
+async def _semantic_ranked(chunks, query: str):
+    try:
+        from tools.embedder import cosine_similarity, embed
+        query_vec = await embed(query)
+        scored = sorted(
+            [(c, cosine_similarity(query_vec, c.embedding) if c.embedding else 0.0) for c in chunks],
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        top = [c for c, _ in scored[:MAX_CHUNKS_PER_QUERY]]
+        top.sort(key=lambda c: c.chunk_index)
+        return top
+    except Exception as e:
+        logger.warning("Semantic search failed, falling back to keywords: %s", e)
+        return _keyword_ranked(chunks, query)
+
+
+def _keyword_ranked(chunks, query: str):
+    scored = sorted(
+        [(c, _keyword_score(c.content_text or "", query)) for c in chunks],
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    top = [c for c, _ in scored[:MAX_CHUNKS_PER_QUERY]]
+    top.sort(key=lambda c: c.chunk_index)
+    return top
 
 
 async def read_file(
@@ -30,58 +54,39 @@ async def read_file(
 ) -> str:
     chunks = await db.get_file_chunks(guild_id, channel_id, filename)
     if not chunks:
-        # Try fuzzy match - find files with similar names
         all_files = await db.get_channel_files(guild_id, channel_id)
         available = [f["filename"] for f in all_files]
         if available:
-            return (
-                f"File '{filename}' not found. "
-                f"Available files: {', '.join(available)}"
-            )
+            return f"File '{filename}' not found. Available files: {', '.join(available)}"
         return f"File '{filename}' not found. No files are indexed in this channel."
 
     if len(chunks) == 1:
         return chunks[0].content_text or "[Image file - no text content]"
 
-    # With a query, score chunks by relevance
-    if query:
-        scored = sorted(
-            [(chunk, _simple_relevance_score(chunk.content_text or "", query)) for chunk in chunks],
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        top_chunks = [c for c, _ in scored[:MAX_CHUNKS_PER_QUERY]]
-        top_chunks.sort(key=lambda c: c.chunk_index)
-    else:
-        # Return first N chunks
+    if not query:
         top_chunks = chunks[:MAX_CHUNKS_PER_QUERY]
+    elif any(c.embedding for c in chunks):
+        top_chunks = await _semantic_ranked(chunks, query)
+    else:
+        # Old chunks indexed before embeddings were added — keyword fallback
+        top_chunks = _keyword_ranked(chunks, query)
 
     total = chunks[0].chunk_total
-    result_parts = [
-        f"[{filename} - showing {len(top_chunks)}/{total} chunk(s)]\n"
-    ]
+    result_parts = [f"[{filename} - showing {len(top_chunks)}/{total} chunk(s)]\n"]
     for chunk in top_chunks:
         result_parts.append(
             f"\n--- Chunk {chunk.chunk_index + 1}/{total} ---\n{chunk.content_text}"
         )
-
     return "\n".join(result_parts)
 
 
 def make_file_reader_tool(db: "Database", guild_id: str, channel_id: str) -> dict:
-    """Return a tool dict with a bound file reader for the given channel."""
     async def _fn(filename: str, query: Optional[str] = None) -> str:
         return await read_file(db, guild_id, channel_id, filename, query)
 
-    return {
-        "name": "read_file",
-        "fn": _fn,
-    }
+    return {"name": "read_file", "fn": _fn}
 
 
 def make_web_search_tool() -> dict:
     from tools.web_search import tool_web_search
-    return {
-        "name": "web_search",
-        "fn": tool_web_search,
-    }
+    return {"name": "web_search", "fn": tool_web_search}

@@ -35,6 +35,53 @@ class FilesCog(commands.Cog):
 
         await self._index_attachments(message)
 
+    async def _index_one(
+        self, attachment: discord.Attachment, guild_id: str, channel_id: str
+    ) -> str:
+        path = await downloader.download_attachment(attachment, guild_id, channel_id)
+        extracted = await extractor.extract(
+            path,
+            groq_api_key=self.settings.groq_api_key,
+            gemini_api_key=self.settings.gemini_api_key,
+            gemini_model=self.settings.gemini_model,
+        )
+        if extracted.error:
+            return f"- `{attachment.filename}`: Error - {extracted.error}"
+
+        await self.bot.db.delete_file(guild_id, channel_id, attachment.filename)
+
+        if extracted.is_image:
+            await self.bot.db.insert_file_chunk(
+                guild_id=guild_id, channel_id=channel_id,
+                filename=attachment.filename, file_type=extracted.file_type,
+                chunk_index=0, chunk_total=1,
+                content_text="[Image file - analyzed via vision when referenced]",
+                is_image=True,
+            )
+            return f"- `{attachment.filename}`: Indexed as image (vision-ready)"
+
+        if extracted.text:
+            return await self._store_text_chunks(attachment, guild_id, channel_id, extracted)
+
+        return f"- `{attachment.filename}`: No content extracted"
+
+    async def _store_text_chunks(self, attachment, guild_id, channel_id, extracted) -> str:
+        from tools.embedder import embed, is_available
+        chunks = chunker.chunk_text(extracted.text)
+        use_embeddings = is_available()
+        for i, chunk_text in enumerate(chunks):
+            embedding = await embed(chunk_text) if use_embeddings else None
+            await self.bot.db.insert_file_chunk(
+                guild_id=guild_id, channel_id=channel_id,
+                filename=attachment.filename, file_type=extracted.file_type,
+                chunk_index=i, chunk_total=len(chunks),
+                content_text=chunk_text, is_image=False, embedding=embedding,
+            )
+        return (
+            f"- `{attachment.filename}`: Indexed ({len(chunks)} chunk(s), "
+            f"~{len(extracted.text):,} chars)"
+        )
+
     async def _index_attachments(
         self,
         message: discord.Message,
@@ -46,54 +93,7 @@ class FilesCog(commands.Cog):
 
         for attachment in message.attachments:
             try:
-                path = await downloader.download_attachment(attachment, guild_id, channel_id)
-                extracted = await extractor.extract(
-                    path,
-                    groq_api_key=self.settings.groq_api_key,
-                    gemini_api_key=self.settings.gemini_api_key,
-                    gemini_model=self.settings.gemini_model,
-                )
-
-                if extracted.error:
-                    results.append(f"- `{attachment.filename}`: Error - {extracted.error}")
-                    continue
-
-                # Delete existing chunks for this file before re-indexing
-                await self.bot.db.delete_file(guild_id, channel_id, attachment.filename)
-
-                if extracted.is_image:
-                    # Store image marker (no text chunks)
-                    await self.bot.db.insert_file_chunk(
-                        guild_id=guild_id,
-                        channel_id=channel_id,
-                        filename=attachment.filename,
-                        file_type=extracted.file_type,
-                        chunk_index=0,
-                        chunk_total=1,
-                        content_text="[Image file - analyzed via vision when referenced]",
-                        is_image=True,
-                    )
-                    results.append(f"- `{attachment.filename}`: Indexed as image (vision-ready)")
-                elif extracted.text:
-                    chunks = chunker.chunk_text(extracted.text)
-                    for i, chunk_text in enumerate(chunks):
-                        await self.bot.db.insert_file_chunk(
-                            guild_id=guild_id,
-                            channel_id=channel_id,
-                            filename=attachment.filename,
-                            file_type=extracted.file_type,
-                            chunk_index=i,
-                            chunk_total=len(chunks),
-                            content_text=chunk_text,
-                            is_image=False,
-                        )
-                    results.append(
-                        f"- `{attachment.filename}`: Indexed ({len(chunks)} chunk(s), "
-                        f"~{len(extracted.text):,} chars)"
-                    )
-                else:
-                    results.append(f"- `{attachment.filename}`: No content extracted")
-
+                results.append(await self._index_one(attachment, guild_id, channel_id))
             except ValueError as e:
                 results.append(f"- `{attachment.filename}`: {e}")
             except Exception as e:

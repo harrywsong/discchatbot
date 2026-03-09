@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS file_index (
     chunk_index  INTEGER NOT NULL,
     chunk_total  INTEGER NOT NULL,
     content_text TEXT,
+    embedding    BLOB,
     is_image     BOOLEAN DEFAULT FALSE,
     created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -70,6 +71,7 @@ class FileChunkRow:
     chunk_index: int
     chunk_total: int
     content_text: Optional[str]
+    embedding: Optional[bytes]
     is_image: bool
     created_at: str
 
@@ -92,7 +94,13 @@ class Database:
         self._conn = await aiosqlite.connect(self._path)
         self._conn.row_factory = aiosqlite.Row
         await self._conn.executescript(SCHEMA)
-        await self._conn.commit()
+        # Migrate existing DBs that don't have the embedding column yet
+        try:
+            await self._conn.execute("ALTER TABLE file_index ADD COLUMN embedding BLOB")
+            await self._conn.commit()
+            logger.info("Migrated file_index: added embedding column")
+        except Exception:
+            pass  # Column already exists
         logger.info("Database connected: %s", self._path)
 
     async def close(self) -> None:
@@ -199,14 +207,15 @@ class Database:
         chunk_total: int,
         content_text: Optional[str] = None,
         is_image: bool = False,
+        embedding: Optional[bytes] = None,
     ) -> None:
         await self._conn.execute(
             "INSERT INTO file_index "
             "(guild_id, channel_id, filename, file_type, chunk_index, chunk_total, "
-            " content_text, is_image) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            " content_text, is_image, embedding) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (guild_id, channel_id, filename, file_type, chunk_index, chunk_total,
-             content_text, is_image),
+             content_text, is_image, embedding),
         )
         await self._conn.commit()
 
