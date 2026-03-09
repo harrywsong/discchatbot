@@ -31,11 +31,10 @@ class Settings(BaseSettings):
 
     # LLM model names
     # Free tier options (no billing required), as of March 2026:
-    #   gemini-3.1-flash-lite  15 RPM,  500 RPD — best overall for personal use
-    #   gemini-3-flash          5 RPM,   20 RPD
-    #   gemini-2.5-flash        5 RPM,   20 RPD
-    #   gemini-2.5-flash-lite  10 RPM,   20 RPD
-    gemini_model: str = "gemini-3.1-flash-lite"
+    #   gemini-3.1-flash-lite-preview  15 RPM, 500 RPD — best overall for personal use
+    #   gemini-2.5-flash                5 RPM,  20 RPD
+    #   gemini-2.5-flash-lite          10 RPM,  20 RPD
+    gemini_model: str = "gemini-3.1-flash-lite-preview"
     groq_model: str = "meta-llama/llama-4-scout-17b-16e-instruct"
 
     # Guild ID for instant slash command sync
