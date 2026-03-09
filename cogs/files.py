@@ -47,7 +47,12 @@ class FilesCog(commands.Cog):
         for attachment in message.attachments:
             try:
                 path = await downloader.download_attachment(attachment, guild_id, channel_id)
-                extracted = await extractor.extract(path, groq_api_key=self.settings.groq_api_key)
+                extracted = await extractor.extract(
+                    path,
+                    groq_api_key=self.settings.groq_api_key,
+                    gemini_api_key=self.settings.gemini_api_key,
+                    gemini_model=self.settings.gemini_model,
+                )
 
                 if extracted.error:
                     results.append(f"- `{attachment.filename}`: Error - {extracted.error}")

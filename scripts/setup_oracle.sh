@@ -38,6 +38,7 @@ sudo apt-get install -y \
     "$PYTHON_VENV_PKG" \
     python3-pip \
     "$LIBMAGIC_PKG" \
+    poppler-utils \
     git \
     curl
 

@@ -48,7 +48,12 @@ def _detect_mime(path: Path) -> str:
     return mime or "application/octet-stream"
 
 
-async def extract(path: Path, groq_api_key: Optional[str] = None) -> ExtractedContent:
+async def extract(
+    path: Path,
+    groq_api_key: Optional[str] = None,
+    gemini_api_key: Optional[str] = None,
+    gemini_model: str = "gemini-2.5-flash-lite",
+) -> ExtractedContent:
     mime = _detect_mime(path)
     filename = path.name
     logger.info("Extracting %s (MIME: %s)", filename, mime)
@@ -57,7 +62,7 @@ async def extract(path: Path, groq_api_key: Optional[str] = None) -> ExtractedCo
     if mime == "application/pdf":
         try:
             from file_processing.parsers import pdf_parser
-            text = pdf_parser.parse(path)
+            text = await pdf_parser.parse(path, gemini_api_key=gemini_api_key, gemini_model=gemini_model)
             return ExtractedContent(filename=filename, file_type="pdf", text=text)
         except Exception as e:
             return ExtractedContent(filename=filename, file_type="pdf", error=str(e))
