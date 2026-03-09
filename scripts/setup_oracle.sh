@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One-shot provisioning script for fresh Ubuntu 22.04 ARM64 (Oracle Always Free)
-# Run as: bash setup_oracle.sh
+# Provisioning script for Oracle Always Free ARM64 (Ubuntu 22.04 or 24.04)
+# Run as: bash scripts/setup_oracle.sh
 set -euo pipefail
 
 BOT_DIR="/home/ubuntu/discchatbot"
@@ -8,19 +8,41 @@ VENV_DIR="/home/ubuntu/venv"
 
 echo "=== Updating system packages ==="
 sudo apt-get update -y
-sudo apt-get upgrade -y
+
+echo "=== Detecting Python version ==="
+# Ubuntu 22.04 ships Python 3.10, 24.04 ships Python 3.12
+# Find the best available python3 binary
+if command -v python3.12 &>/dev/null; then
+    PYTHON=python3.12
+    PYTHON_VENV_PKG=python3.12-venv
+elif command -v python3.11 &>/dev/null; then
+    PYTHON=python3.11
+    PYTHON_VENV_PKG=python3.11-venv
+elif command -v python3.10 &>/dev/null; then
+    PYTHON=python3.10
+    PYTHON_VENV_PKG=python3.10-venv
+else
+    PYTHON=python3
+    PYTHON_VENV_PKG=python3-venv
+fi
+echo "Using: $PYTHON"
 
 echo "=== Installing system dependencies ==="
+# libmagic1 was renamed to libmagic1t64 on Ubuntu 24.04 - install whichever exists
+LIBMAGIC_PKG=libmagic1
+if apt-cache show libmagic1t64 &>/dev/null 2>&1; then
+    LIBMAGIC_PKG=libmagic1t64
+fi
+
 sudo apt-get install -y \
-    python3.11 \
-    python3.11-venv \
+    "$PYTHON_VENV_PKG" \
     python3-pip \
-    libmagic1 \
+    "$LIBMAGIC_PKG" \
     git \
     curl
 
 echo "=== Creating Python virtual environment ==="
-python3.11 -m venv "$VENV_DIR"
+"$PYTHON" -m venv "$VENV_DIR"
 source "$VENV_DIR/bin/activate"
 
 echo "=== Installing Python dependencies ==="
@@ -40,7 +62,10 @@ if [ ! -f "$BOT_DIR/.env" ]; then
 fi
 
 echo "=== Installing systemd service ==="
-sudo cp "$BOT_DIR/systemd/discchatbot.service" /etc/systemd/system/
+# Update the service file to point to the detected venv python
+sed "s|/home/ubuntu/venv/bin/python|$VENV_DIR/bin/python|g" \
+    "$BOT_DIR/systemd/discchatbot.service" | sudo tee /etc/systemd/system/discchatbot.service > /dev/null
+
 sudo systemctl daemon-reload
 sudo systemctl enable discchatbot
 
