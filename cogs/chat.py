@@ -53,8 +53,11 @@ def _build_system_prompt(
         "Be concise and conversational. Use markdown formatting when helpful.",
         "",
         "You have tools available, but only use them when genuinely needed:",
-        "- `web_search`: ONLY for current/live info (weather, news, prices, recent events). "
-        "Do NOT use for general knowledge, explanations, or anything in your training data.",
+        "- `web_search`: Use for current/live info that changes over time. "
+        "You MUST use web_search (never guess) for: weather, current temperatures, "
+        "current time in a specific city/timezone, live sports scores, stock prices, "
+        "breaking news, or anything that could have changed since your training cutoff. "
+        "Do NOT use for general knowledge, history, explanations, or concepts in your training data.",
         "- `read_file`: ONLY when the user asks about a specific uploaded file.",
         "When you use web_search, cite your sources.",
     ]
