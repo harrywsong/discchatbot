@@ -30,5 +30,8 @@ python-docx>=1.1.0
 chardet>=5.0.0
 python-magic>=0.4.27
 
+# Timezone data (required on Windows; no-op on Linux which has system tzdata)
+tzdata>=2024.1
+
 # Audio transcription (via Groq Whisper)
 # Already included via groq package

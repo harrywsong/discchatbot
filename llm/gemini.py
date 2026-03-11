@@ -58,6 +58,139 @@ TOOL_DEFINITIONS = gtypes.Tool(
                 required=["filename"],
             ),
         ),
+        gtypes.FunctionDeclaration(
+            name="get_weather",
+            description="Get the current weather and today's forecast for any location.",
+            parameters=gtypes.Schema(
+                type=gtypes.Type.OBJECT,
+                properties={
+                    "location": gtypes.Schema(
+                        type=gtypes.Type.STRING,
+                        description="City name, e.g. 'London', 'New York', 'Tokyo'",
+                    ),
+                },
+                required=["location"],
+            ),
+        ),
+        gtypes.FunctionDeclaration(
+            name="calculate",
+            description=(
+                "Evaluate a mathematical expression. Supports arithmetic, math functions "
+                "(sqrt, sin, cos, log, etc.), and constants (pi, e). "
+                "Use this for any calculation rather than doing it mentally."
+            ),
+            parameters=gtypes.Schema(
+                type=gtypes.Type.OBJECT,
+                properties={
+                    "expression": gtypes.Schema(
+                        type=gtypes.Type.STRING,
+                        description="The math expression to evaluate, e.g. 'sqrt(2) * pi'",
+                    ),
+                },
+                required=["expression"],
+            ),
+        ),
+        gtypes.FunctionDeclaration(
+            name="get_current_time",
+            description="Get the current date and time in any timezone.",
+            parameters=gtypes.Schema(
+                type=gtypes.Type.OBJECT,
+                properties={
+                    "timezone": gtypes.Schema(
+                        type=gtypes.Type.STRING,
+                        description=(
+                            "IANA timezone name, e.g. 'America/New_York', 'Europe/London', "
+                            "'Asia/Tokyo', or abbreviations like 'EST', 'PST', 'UTC'."
+                        ),
+                    ),
+                },
+                required=["timezone"],
+            ),
+        ),
+        gtypes.FunctionDeclaration(
+            name="fetch_webpage",
+            description=(
+                "Fetch and extract the text content of a webpage. "
+                "Use this to read articles, documentation, or any URL the user shares."
+            ),
+            parameters=gtypes.Schema(
+                type=gtypes.Type.OBJECT,
+                properties={
+                    "url": gtypes.Schema(
+                        type=gtypes.Type.STRING,
+                        description="The full URL to fetch",
+                    ),
+                },
+                required=["url"],
+            ),
+        ),
+        gtypes.FunctionDeclaration(
+            name="run_python",
+            description=(
+                "Execute Python code in a sandboxed environment and return the output. "
+                "Use this for complex calculations, data processing, string manipulation, "
+                "or anything that benefits from running actual code. "
+                "Available modules: math, random, json, datetime, re, string, collections, "
+                "itertools, functools."
+            ),
+            parameters=gtypes.Schema(
+                type=gtypes.Type.OBJECT,
+                properties={
+                    "code": gtypes.Schema(
+                        type=gtypes.Type.STRING,
+                        description="Python code to execute",
+                    ),
+                },
+                required=["code"],
+            ),
+        ),
+        gtypes.FunctionDeclaration(
+            name="get_server_info",
+            description="Get information about this Discord server (member count, channels, etc.).",
+            parameters=gtypes.Schema(
+                type=gtypes.Type.OBJECT,
+                properties={},
+            ),
+        ),
+        gtypes.FunctionDeclaration(
+            name="get_user_info",
+            description=(
+                "Look up a Discord user in this server by their username, display name, or ID. "
+                "Returns their mention format, roles, and join date. "
+                "Use this to find a user's ID before mentioning them."
+            ),
+            parameters=gtypes.Schema(
+                type=gtypes.Type.OBJECT,
+                properties={
+                    "username_or_id": gtypes.Schema(
+                        type=gtypes.Type.STRING,
+                        description="Username, display name, or numeric user ID",
+                    ),
+                },
+                required=["username_or_id"],
+            ),
+        ),
+        gtypes.FunctionDeclaration(
+            name="set_reminder",
+            description=(
+                "Set a reminder that will ping the user in this channel after a delay. "
+                "Use this when the user asks to be reminded about something."
+            ),
+            parameters=gtypes.Schema(
+                type=gtypes.Type.OBJECT,
+                properties={
+                    "message": gtypes.Schema(
+                        type=gtypes.Type.STRING,
+                        description="What to remind the user about",
+                    ),
+                    "delay_minutes": gtypes.Schema(
+                        type=gtypes.Type.NUMBER,
+                        description="How many minutes from now to send the reminder",
+                    ),
+                },
+                required=["message", "delay_minutes"],
+            ),
+        ),
     ]
 )
 

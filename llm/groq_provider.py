@@ -39,19 +39,136 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": (
-                "Read content from a file that has been uploaded/indexed in this channel."
-            ),
+            "description": "Read content from a file that has been uploaded/indexed in this channel.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filename": {"type": "string", "description": "The filename to read"},
-                    "query": {
-                        "type": "string",
-                        "description": "What information to look for in the file",
-                    },
+                    "query": {"type": "string", "description": "What information to look for in the file"},
                 },
                 "required": ["filename"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get the current weather and today's forecast for any location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string", "description": "City name, e.g. 'London', 'New York'"},
+                },
+                "required": ["location"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "calculate",
+            "description": (
+                "Evaluate a mathematical expression. Supports arithmetic, math functions "
+                "(sqrt, sin, cos, log, etc.), and constants (pi, e). "
+                "Use this for any calculation rather than doing it mentally."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "The math expression to evaluate"},
+                },
+                "required": ["expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_time",
+            "description": "Get the current date and time in any timezone.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "timezone": {
+                        "type": "string",
+                        "description": "IANA timezone name, e.g. 'America/New_York', 'Europe/London', or abbreviations like 'EST', 'UTC'.",
+                    },
+                },
+                "required": ["timezone"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "fetch_webpage",
+            "description": "Fetch and extract the text content of a webpage. Use this to read articles, documentation, or any URL the user shares.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "The full URL to fetch"},
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_python",
+            "description": (
+                "Execute Python code in a sandboxed environment and return the output. "
+                "Use this for complex calculations, data processing, or string manipulation. "
+                "Available modules: math, random, json, datetime, re, string, collections, itertools, functools."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "description": "Python code to execute"},
+                },
+                "required": ["code"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_server_info",
+            "description": "Get information about this Discord server (member count, channels, etc.).",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_user_info",
+            "description": (
+                "Look up a Discord user in this server by username, display name, or ID. "
+                "Returns their mention format, roles, and join date. "
+                "Use this to find a user's ID before mentioning them."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username_or_id": {"type": "string", "description": "Username, display name, or numeric user ID"},
+                },
+                "required": ["username_or_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_reminder",
+            "description": "Set a reminder that will ping the user in this channel after a delay.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "description": "What to remind the user about"},
+                    "delay_minutes": {"type": "number", "description": "How many minutes from now to send the reminder"},
+                },
+                "required": ["message", "delay_minutes"],
             },
         },
     },

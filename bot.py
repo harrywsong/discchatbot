@@ -22,6 +22,7 @@ COGS = [
     "cogs.admin",
     "cogs.search",
     "cogs.files",
+    "cogs.reminders",
     "cogs.chat",  # Load chat last so files cog's on_message runs first
 ]
 

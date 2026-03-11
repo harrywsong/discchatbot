@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -11,6 +11,18 @@ import aiosqlite
 logger = logging.getLogger(__name__)
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS reminders (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id  TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    message     TEXT NOT NULL,
+    due_at      DATETIME NOT NULL,
+    sent        BOOLEAN DEFAULT FALSE,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_reminders_due
+    ON reminders(due_at, sent);
+
 CREATE TABLE IF NOT EXISTS messages (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     guild_id    TEXT NOT NULL,
@@ -73,6 +85,17 @@ class FileChunkRow:
     content_text: Optional[str]
     embedding: Optional[bytes]
     is_image: bool
+    created_at: str
+
+
+@dataclass
+class ReminderRow:
+    id: int
+    channel_id: str
+    user_id: str
+    message: str
+    due_at: str
+    sent: bool
     created_at: str
 
 
@@ -270,6 +293,33 @@ class Database:
             "files": file_count,
             "size_kb": round(size_bytes / 1024, 1),
         }
+
+    # ── Reminders ─────────────────────────────────────────────────────────────
+
+    async def add_reminder(
+        self, channel_id: str, user_id: str, message: str, due_at: datetime
+    ) -> None:
+        await self._conn.execute(
+            "INSERT INTO reminders (channel_id, user_id, message, due_at) VALUES (?, ?, ?, ?)",
+            (channel_id, user_id, message, due_at.strftime("%Y-%m-%d %H:%M:%S")),
+        )
+        await self._conn.commit()
+
+    async def get_due_reminders(self) -> list[ReminderRow]:
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        async with self._conn.execute(
+            "SELECT * FROM reminders WHERE due_at <= ? AND sent = FALSE",
+            (now,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [ReminderRow(**dict(row)) for row in rows]
+
+    async def mark_reminder_sent(self, reminder_id: int) -> None:
+        await self._conn.execute(
+            "UPDATE reminders SET sent = TRUE WHERE id = ?",
+            (reminder_id,),
+        )
+        await self._conn.commit()
 
     # ── Channel settings ──────────────────────────────────────────────────────
 

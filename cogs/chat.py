@@ -12,7 +12,14 @@ from config import get_settings
 from llm.base import ImageContent, Message
 from llm.router import get_router
 from memory.history import HistoryManager
+from tools.calculator import make_calculator_tool
+from tools.code_runner import make_code_runner_tool
+from tools.discord_tools import make_discord_tools
 from tools.file_reader import make_file_reader_tool, make_web_search_tool
+from tools.reminder_tool import make_reminder_tool
+from tools.time_tool import make_time_tool
+from tools.url_fetcher import make_url_fetcher_tool
+from tools.weather import make_weather_tool
 
 if TYPE_CHECKING:
     from bot import DiscordBot
@@ -51,14 +58,19 @@ def _build_system_prompt(
         f"Current date/time: {now}. Channel: #{channel_name}.",
         "",
         "Be concise and conversational. Use markdown formatting when helpful.",
+        "You can mention users with <@user_id> syntax — use get_user_info first to find their ID.",
         "",
-        "You have tools available, but only use them when genuinely needed:",
-        "- `web_search`: Use for current/live info that changes over time. "
-        "You MUST use web_search (never guess) for: weather, current temperatures, "
-        "current time in a specific city/timezone, live sports scores, stock prices, "
-        "breaking news, or anything that could have changed since your training cutoff. "
-        "Do NOT use for general knowledge, history, explanations, or concepts in your training data.",
-        "- `read_file`: ONLY when the user asks about a specific uploaded file.",
+        "You have tools available. Use them proactively when relevant:",
+        "- `web_search`: Current/live info — news, prices, recent events, anything post-training.",
+        "- `get_weather`: Weather for any location.",
+        "- `calculate`: Any math. Always use this instead of computing mentally.",
+        "- `get_current_time`: Current time in any timezone.",
+        "- `fetch_webpage`: Read the content of any URL the user shares.",
+        "- `run_python`: Execute Python for complex logic, data processing, or algorithms.",
+        "- `get_server_info`: Discord server stats.",
+        "- `get_user_info`: Look up a user by name or ID; also use before mentioning someone.",
+        "- `set_reminder`: Remind the user about something after a delay.",
+        "- `read_file`: Read an uploaded/indexed file in this channel.",
         "When you use web_search, cite your sources.",
     ]
     if files_summary and files_summary != "No files indexed in this channel.":
@@ -109,6 +121,7 @@ class ChatCog(commands.Cog):
                 guild_id=str(interaction.guild_id),
                 channel_id=str(interaction.channel_id),
                 channel_name=interaction.channel.name,
+                user_id=str(interaction.user.id),
                 content=message,
                 author_name=interaction.user.display_name,
                 images=[],
@@ -151,6 +164,7 @@ class ChatCog(commands.Cog):
                     guild_id=guild_id,
                     channel_id=channel_id,
                     channel_name=channel_name,
+                    user_id=str(message.author.id),
                     content=content,
                     author_name=message.author.display_name,
                     images=images,
@@ -171,6 +185,7 @@ class ChatCog(commands.Cog):
         guild_id: str,
         channel_id: str,
         channel_name: str,
+        user_id: str,
         content: str,
         author_name: str,
         images: list[ImageContent],
@@ -193,6 +208,13 @@ class ChatCog(commands.Cog):
         tools = [
             make_web_search_tool(),
             make_file_reader_tool(self.bot.db, guild_id, channel_id),
+            make_weather_tool(),
+            make_calculator_tool(),
+            make_time_tool(),
+            make_url_fetcher_tool(),
+            make_code_runner_tool(),
+            make_reminder_tool(self.bot.db, channel_id, user_id),
+            *make_discord_tools(self.bot, guild_id),
         ]
 
         router = get_router()
